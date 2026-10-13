@@ -23,6 +23,7 @@ QQ 群「日历管家」机器人
 import asyncio
 import base64
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -58,6 +59,48 @@ def load_env():
 load_env()
 
 
+def _rotate_log(path, limit=2 * 1024 * 1024):
+    """开机自启是长期往同一个文件里追加，给个 2 MB 上限，超了就轮转成 .1。"""
+    try:
+        if os.path.exists(path) and os.path.getsize(path) > limit:
+            backup = path + ".1"
+            if os.path.exists(backup):
+                os.remove(backup)
+            os.replace(path, backup)
+    except OSError:
+        pass
+
+
+def _adopt_logging_stream(fh):
+    """把 logging 树里「攥着空流」的 handler 接到日志文件上。
+
+    botpy 在 import 的那一刻就调了 logging.basicConfig()，而 StreamHandler()
+    是在构造时把当时的 sys.stderr 存下来的 —— pythonw 下那一刻它还是 None，
+    于是 handler 攥着一个 None 当输出流。后果有两层：
+      ① botpy 的关键日志（登录 / 会话 / 心跳 / [botpy] ... 启动成功）全都写不进去；
+      ② 每写一条还会往 stderr 吐一份 "Logging error ... NoneType has no attribute write" 堆栈，
+         几十条下来把日志刷得没法看。
+    所以换掉 stdout 之后必须顺手把这些 handler 的 stream 也换掉。
+    """
+    seen = set()
+    loggers = [logging.getLogger()]
+    loggers += [logging.getLogger(n) for n in list(logging.root.manager.loggerDict)]
+    for lg in loggers:
+        for h in list(lg.handlers):
+            if id(h) in seen:
+                continue
+            seen.add(id(h))
+            if isinstance(h, logging.StreamHandler) and getattr(h, "stream", None) is None:
+                h.stream = fh
+    # 兜底：万一 basicConfig 压根没建成 handler，自己补一个，别让 botpy 的日志消失
+    root = logging.getLogger()
+    if not any(isinstance(h, logging.StreamHandler) and getattr(h, "stream", None)
+               for h in root.handlers):
+        h = logging.StreamHandler(fh)
+        h.setFormatter(logging.Formatter("[%(levelname)s] %(asctime)s %(message)s"))
+        root.addHandler(h)
+
+
 def setup_logging():
     """把标准输出安排好，两种情况都不至于「一 print 就崩」。
 
@@ -68,11 +111,14 @@ def setup_logging():
     此时 print() 会直接抛 AttributeError 把机器人打死，所以把输出改写到 logs/bot.log。
     """
     if sys.stdout is None:
-        os.makedirs(os.path.join(BASE_DIR, "logs"), exist_ok=True)
-        fh = open(os.path.join(BASE_DIR, "logs", "bot.log"), "a",
-                  encoding="utf-8", buffering=1)          # 行缓冲，实时可查
+        log_dir = os.path.join(BASE_DIR, "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, "bot.log")
+        _rotate_log(log_path)
+        fh = open(log_path, "a", encoding="utf-8", buffering=1)   # 行缓冲，实时可查
         sys.stdout = fh
         sys.stderr = fh
+        _adopt_logging_stream(fh)                                # 必须紧跟其后，见函数注释
         print(f"\n===== {datetime.now():%Y-%m-%d %H:%M:%S} 启动 =====")
         return
     try:

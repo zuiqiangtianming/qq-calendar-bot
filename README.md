@@ -25,7 +25,8 @@ start.bat
 
 - **临时停掉**：cmd 里 `taskkill /F /IM pythonw.exe`
 - **自启之后别再双击 `start.bat`**，否则会同时跑两个实例，症状是回复时有时无。判断当前有没有在跑，看任务管理器里的 `pythonw.exe`
-- 静默启动失败不会弹窗，去 `logs\bot.log` 看
+- 静默启动失败不会弹窗，去 `logs\bot.log` 看。文件是追加写的，超过 2 MB 会自动轮转成 `bot.log.1`，不会无限长大
+- 这个日志里既有本项目打的 `[ready]` / `[in]` / `[cmd]` / `[out]`，也有 SDK 打的 `[botpy]` 行（登录、会话、鉴权、心跳），排查时两头都能看
 - 如果开机时网络还没就绪导致启动失败，改用「任务计划程序」：触发器选「登录时」并加 1 分钟延迟，操作填 `wscript.exe`，参数填 `"...\autostart.vbs"` 的完整路径
 
 ## 部署到 Linux 服务器
@@ -264,6 +265,7 @@ SDK 的 `post_group_file()` 只接受 `url` 参数，传不了本地文件。所
 - 后台「指令配置」最多 24 个指令，名称不超过 8 个中文字符。
 - SDK `qq-botpy` 已停更约两年，仓库是 <https://github.com/tencent-connect/botpy>。
 - **Windows 任务管理器里看到两个 `python.exe` 是正常的**：`.venv\Scripts\python.exe` 只是个启动器（venvlauncher），它会再拉起一个真正的 python 子进程，所以「一个实例 = 两个进程」。要确认有没有重复启动，别看进程数，**数 cmd 窗口**——或者查进程的 `ParentProcessId`：父进程是另一个 python 的那两个属于同一个实例。
+- **`pythonw` 下 botpy 的日志会全丢，还会刷一屏异常**：`botpy/logging.py` 在 import 时就调了 `logging.basicConfig()`，而 `StreamHandler()` 是在**构造那一刻**把 `sys.stderr` 存进自己的 `.stream` 的——`pythonw` 下那一刻 `sys.stderr` 还是 `None`，handler 从此攥着一个空流。症状是 `logs\bot.log` 里没有一行 `[botpy]`，却塞满 `Logging error ... 'NoneType' object has no attribute 'write'` 的堆栈。浏览器窗口能正常跑是因为那时 `sys.stderr` 是有效的，所以这个坑只在静默自启时才现形。修法见 `bot.py` 的 `_adopt_logging_stream()`：换掉 `sys.stdout` / `sys.stderr` 之后，顺手把 logging 树里所有 `stream is None` 的 handler 接到日志文件上。
 
 ## 想要「点击按钮直接出结果」？
 
