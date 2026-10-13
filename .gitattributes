@@ -1,0 +1,12 @@
+# shell / systemd 脚本必须是 LF，否则 Linux 上会报 "\r: command not found"
+*.sh            text eol=lf
+*.service       text eol=lf
+*.py            text eol=lf
+*.md            text eol=lf
+.env.example    text eol=lf
+
+# Windows 批处理反过来
+*.bat           text eol=crlf
+
+# 图片按二进制处理
+*.png           binary

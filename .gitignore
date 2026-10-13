@@ -1,0 +1,12 @@
+# 凭证：不要提交（clone 后 cp .env.example .env 再填）
+.env
+
+# 运行时数据
+schedule.db
+out/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
