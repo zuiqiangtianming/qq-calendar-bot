@@ -239,6 +239,7 @@ SDK 的 `post_group_file()` 只接受 `url` 参数，传不了本地文件。所
 - 消息里如果带 URL，域名必须先在后台「消息 URL 白名单」里报备，否则整条消息发送失败。
 - 后台「指令配置」最多 24 个指令，名称不超过 8 个中文字符。
 - SDK `qq-botpy` 已停更约两年，仓库是 <https://github.com/tencent-connect/botpy>。
+- **Windows 任务管理器里看到两个 `python.exe` 是正常的**：`.venv\Scripts\python.exe` 只是个启动器（venvlauncher），它会再拉起一个真正的 python 子进程，所以「一个实例 = 两个进程」。要确认有没有重复启动，别看进程数，**数 cmd 窗口**——或者查进程的 `ParentProcessId`：父进程是另一个 python 的那两个属于同一个实例。
 
 ## 想要「点击按钮直接出结果」？
 
