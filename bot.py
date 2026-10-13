@@ -699,7 +699,7 @@ class CalendarBot(botpy.Client):
 if __name__ == "__main__":
     if not APPID or not SECRET:
         raise SystemExit("请先在同目录 .env 里配置 QQ_BOT_APPID / QQ_BOT_SECRET")
-    print(render.font_report())                            # 服务器上最容易踩的坑，先报到日志里
+    print(render.font_report(), flush=True)                # 服务器上最容易踩的坑，先报到日志里
     asyncio.set_event_loop(asyncio.new_event_loop())    # Python 3.10+ 需要显式建 loop
     intents = botpy.Intents(public_messages=True)       # 群 / 单聊消息
     CalendarBot(intents=intents).run(appid=APPID, secret=SECRET)
