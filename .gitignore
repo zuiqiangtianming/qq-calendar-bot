@@ -5,6 +5,9 @@
 out/
 *.log
 
+# 无窗口自启时的运行日志（autostart.vbs 会写这里）
+logs/
+
 # Python
 __pycache__/
 *.pyc

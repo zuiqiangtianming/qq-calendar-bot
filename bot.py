@@ -57,6 +57,29 @@ def load_env():
 
 load_env()
 
+
+def setup_logging():
+    """把标准输出安排好，两种情况都不至于「一 print 就崩」。
+
+    有控制台（双击 start.bat / 前台 python bot.py）：输出直接打在窗口里，
+    顺手改成行缓冲 —— 重定向时默认是块缓冲，[in]/[cmd]/[out] 会卡在缓冲区里看不到。
+
+    没控制台（开机自启用的 pythonw / 隐藏窗口）：sys.stdout 是 None，
+    此时 print() 会直接抛 AttributeError 把机器人打死，所以把输出改写到 logs/bot.log。
+    """
+    if sys.stdout is None:
+        os.makedirs(os.path.join(BASE_DIR, "logs"), exist_ok=True)
+        fh = open(os.path.join(BASE_DIR, "logs", "bot.log"), "a",
+                  encoding="utf-8", buffering=1)          # 行缓冲，实时可查
+        sys.stdout = fh
+        sys.stderr = fh
+        print(f"\n===== {datetime.now():%Y-%m-%d %H:%M:%S} 启动 =====")
+        return
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
+
 # ─────────────── 配置 ───────────────
 APPID = os.getenv("QQ_BOT_APPID", "")
 SECRET = os.getenv("QQ_BOT_SECRET", "")
@@ -706,14 +729,11 @@ class CalendarBot(botpy.Client):
 
 
 if __name__ == "__main__":
+    # 必须放在最前面：无控制台启动（pythonw / 隐藏窗口）时 sys.stdout 是 None，
+    # 这时候连 SystemExit 的消息都没处打，所以先把输出安排好。
+    setup_logging()
     if not APPID or not SECRET:
         raise SystemExit("请先在同目录 .env 里配置 QQ_BOT_APPID / QQ_BOT_SECRET")
-    try:
-        # 后台运行 / systemd 重定向时 stdout 默认是块缓冲，[in] / [cmd] / [out] 这些
-        # 诊断行会卡在缓冲区里大半天看不到。改成行缓冲，日志里才能实时看到走了哪一级发送。
-        sys.stdout.reconfigure(line_buffering=True)
-    except Exception:
-        pass
     print(render.font_report(), flush=True)                # 服务器上最容易踩的坑，先报到日志里
     asyncio.set_event_loop(asyncio.new_event_loop())    # Python 3.10+ 需要显式建 loop
     intents = botpy.Intents(public_messages=True)       # 群 / 单聊消息

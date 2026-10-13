@@ -17,6 +17,17 @@ start.bat
 
 **`start.bat` 必须是 CRLF 换行 + GBK 编码**，这不是洁癖：cmd 读 LF 换行的批处理会从错误位置切行，把命令碎片当命令执行，症状是**双击后窗口一闪就退**（其实每行都在报错，只是没来得及看）。用编辑器改它时别存成 LF 或 UTF-8。仓库已用 `.gitattributes` 的 `*.bat text eol=crlf` 兜底，`git clone` 出来的就是 CRLF。
 
+### 开机自启（Windows）
+
+`autostart.vbs` 是给自启用的**静默启动器**：用 `pythonw.exe`（无控制台）拉起 `bot.py`，不弹黑窗口，输出写进 `logs\bot.log`（没有窗口就只能靠这个文件排查）。
+
+安装方式：把 `autostart.vbs` 复制进「启动」文件夹即可 —— `Win+R` 输入 `shell:startup` 回车，就能打开那个文件夹。项目里附了 `enable-autostart.vbs` 帮你做这件事：**双击它就是安装**，卸载则在 cmd 里跑 `wscript enable-autostart.vbs remove`，或者直接把启动文件夹里那个 vbs 删掉。
+
+- **临时停掉**：cmd 里 `taskkill /F /IM pythonw.exe`
+- **自启之后别再双击 `start.bat`**，否则会同时跑两个实例，症状是回复时有时无。判断当前有没有在跑，看任务管理器里的 `pythonw.exe`
+- 静默启动失败不会弹窗，去 `logs\bot.log` 看
+- 如果开机时网络还没就绪导致启动失败，改用「任务计划程序」：触发器选「登录时」并加 1 分钟延迟，操作填 `wscript.exe`，参数填 `"...\autostart.vbs"` 的完整路径
+
 ## 部署到 Linux 服务器
 
 ```bash
