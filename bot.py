@@ -26,6 +26,7 @@ import json
 import os
 import re
 import sqlite3
+import sys
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
 
@@ -66,15 +67,20 @@ MAX_ROWS = 40            # 表格最多渲染多少天，防止消息过长被�
 
 WEEK_CN = "一二三四五六日"
 
-HELP = """📖 指令示例
-
-/日历
-
-/加 12.31 23:59 A公司 小张
-
-/批量 分号或换行隔开即可
-
-/删 12.31 23:59"""
+# 帮助里的「空行」要写成一行全角空格，不能是真空白行。
+# 原因有两个，缺一个都不行：
+#   ① 按钮（keyboard）只能挂在 markdown 消息上，纯文本消息平台会直接丢掉按钮，
+#      所以帮助必须走 msg_type=2；
+#   ② markdown 渲染会吞掉纯空白行（不生成占位），空行写进去也看不见。
+# 全角空格是有字符的一行，既能被 markdown 原样保留，看着又正好是一个空行。
+_SEP = "\u3000"
+HELP = ("\n" + _SEP + "\n").join((
+    "📖 指令示例",
+    "/日历",
+    "/加 12.31 23:59 A公司 小张",
+    "/批量 分号或换行隔开即可",
+    "/删 12.31 23:59",
+))
 
 
 # ─────────────── 存储 ───────────────
@@ -600,7 +606,7 @@ class CalendarBot(botpy.Client):
             # 机器人默认只收得到 @它 的消息，所以「收到了但没有指令」就等于
             # 「@了它但没说要干什么」—— 这时候把用法摆出来最合适。
             print("[cmd] 无指令 → 回帮助")
-            await self.safe_reply(message, HELP, plain=True)
+            await self.safe_reply(message, HELP)
             return
         raw = raw[idx:]
         print(f"[cmd] {raw!r}")
@@ -611,7 +617,7 @@ class CalendarBot(botpy.Client):
 
         creator = getattr(message.author, "member_openid", "") or ""
         text = dispatch(message.group_openid, creator, raw)
-        await self.safe_reply(message, text, plain=(text is HELP))
+        await self.safe_reply(message, text)
 
     async def send_calendar_image(self, message):
         """把所有有安排的月份各画一张发出去。返回 True 表示已发出，不必再走文字流程。"""
@@ -678,26 +684,18 @@ class CalendarBot(botpy.Client):
         except Exception as exc:
             print(f"[warn] 附加文字发送失败：{exc}")
 
-    async def safe_reply(self, message, text, plain=False):
-        """先按 markdown 富文本发（表格能渲染），不行就逐级降级，保证消息一定发得出去。
-
-        plain=True 时跳过 markdown 那级：markdown 会把连续空行折叠掉，
-        而帮助文案正是靠空行隔开每条指令的，必须原样发出。
-        """
+    async def safe_reply(self, message, text):
+        """先按 markdown 富文本发（表格能渲染、按钮也只在 markdown 上生效），
+        不行再逐级降级，保证消息一定发得出去。"""
         kb = build_keyboard()
         seq = 1
-        if plain:
-            chain = (
-                ({"msg_type": 0, "content": text, "keyboard": kb}, "纯文本 + 按钮"),
-                ({"msg_type": 0, "content": text}, "纯文本"),
-            )
-        else:
-            chain = (
-                ({"msg_type": 2, "markdown": {"content": text}, "keyboard": kb}, "markdown + 按钮"),
-                ({"msg_type": 0, "content": text, "keyboard": kb}, "纯文本 + 按钮"),
-                ({"msg_type": 0, "content": text}, "纯文本"),
-            )
-        for extra, tag in chain:
+        # 注意：按钮 keyboard 只对 markdown 消息生效，下面两级纯文本发出去是没有按钮的，
+        # 它们只是「内容别丢」的兜底。别再为了别的效果把 markdown 那级跳过。
+        for extra, tag in (
+            ({"msg_type": 2, "markdown": {"content": text}, "keyboard": kb}, "markdown + 按钮"),
+            ({"msg_type": 0, "content": text, "keyboard": kb}, "纯文本 + 按钮"),
+            ({"msg_type": 0, "content": text}, "纯文本"),
+        ):
             try:
                 await message.reply(msg_seq=seq, **extra)
                 print(f"[out] {tag}")
@@ -710,6 +708,12 @@ class CalendarBot(botpy.Client):
 if __name__ == "__main__":
     if not APPID or not SECRET:
         raise SystemExit("请先在同目录 .env 里配置 QQ_BOT_APPID / QQ_BOT_SECRET")
+    try:
+        # 后台运行 / systemd 重定向时 stdout 默认是块缓冲，[in] / [cmd] / [out] 这些
+        # 诊断行会卡在缓冲区里大半天看不到。改成行缓冲，日志里才能实时看到走了哪一级发送。
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
     print(render.font_report(), flush=True)                # 服务器上最容易踩的坑，先报到日志里
     asyncio.set_event_loop(asyncio.new_event_loop())    # Python 3.10+ 需要显式建 loop
     intents = botpy.Intents(public_messages=True)       # 群 / 单聊消息
