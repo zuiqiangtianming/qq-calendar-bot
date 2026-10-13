@@ -6,10 +6,10 @@ QQ 群「日历管家」机器人
 
 指令：
     /日历                            出图：所有有安排的月份，各一张手机竖屏图
-    /日历 [本周|下周|全部|7|10.14]   出表格（筛选场景表格更好读）
-    /加 10.14 17:20 面试 张三         新增一场（最后一段当人名，可省略）
-    /批量 10.14 10:00 面试 张三; ...  一次加多场，分号或换行分隔
-    /删 10.14 15:20                  按日期 + 时间删除
+    /日历 [本周|下周|全部|7|12.31]   出表格（筛选场景表格更好读）
+    /加 12.31 23:59 A公司 小张         新增一场（最后一段当人名，可省略）
+    /批量 12.31 10:00 A公司 小张; ...  一次加多场，分号或换行分隔
+    /删 12.31 23:59                  按日期 + 时间删除
     /帮助
 
 同一场（同群 + 同时间 + 同事项 + 同参与人）只会存一条，重复添加会被跳过。
@@ -66,15 +66,11 @@ MAX_ROWS = 40            # 表格最多渲染多少天，防止消息过长被�
 
 WEEK_CN = "一二三四五六日"
 
-HELP = """📖 **指令示例**
-
-`/日历`
-
-`/加 10.14 17:20 面试 张三`
-
-`/批量 10.14 10:00 面试 张三; 10.14 15:00 笔试 李四`
-
-`/删 10.14 15:20`"""
+HELP = """📖 指令示例
+/日历
+/加 12.31 23:59 A公司 小张
+/批量 分号或换行隔开即可
+/删 12.31 23:59"""
 
 
 # ─────────────── 存储 ───────────────
@@ -124,7 +120,7 @@ MENTION_RE = re.compile(r"<@!?[0-9A-Za-z]+>")     # 群里 @人 会展开成 <@o
 
 
 def parse_date(token, today):
-    """'今天' / '明天' / '10.14' → date；看不懂返回 None。"""
+    """'今天' / '明天' / '12.31' → date；看不懂返回 None。"""
     token = (token or "").strip()
     if token in ("今天", "今日", "today"):
         return today.date()
@@ -178,7 +174,7 @@ def build_calendar(group_id, arg, today):
     elif arg:
         d = parse_date(arg, today)
         if d is None:
-            return "没看懂这个范围～ 试试：`/日历 本周`、`/日历 全部`、`/日历 7`、`/日历 10.14`"
+            return "没看懂这个范围～ 试试：`/日历 本周`、`/日历 全部`、`/日历 7`、`/日历 12.31`"
         start, end = d, d + timedelta(days=6)
         label = f"{mmdd(d)} 起一周"
     else:
@@ -249,7 +245,7 @@ def parse_add(arg, today):
     tokens = MENTION_RE.sub(" ", arg or "").split()
     if len(tokens) < 3:
         return None, None, None, (
-            "格式：`/加 10.14 17:20 面试 张三`\n"
+            "格式：`/加 12.31 23:59 A公司 小张`\n"
             "日期和时间在最前面，最后一段会当成人名（可以不写）。"
         )
 
@@ -257,7 +253,7 @@ def parse_add(arg, today):
 
     d = parse_date(date_tok, today)
     if d is None:
-        return None, None, None, f"日期「{date_tok}」没看懂，用 `10.14` 或 `明天` 试试。"
+        return None, None, None, f"日期「{date_tok}」没看懂，用 `12.31` 或 `明天` 试试。"
     m = TIME_RE.match(time_tok)
     if not m:
         return None, None, None, f"时间「{time_tok}」没看懂，用 `17:20` 这样写。"
@@ -341,7 +337,7 @@ def do_batch_add(group_id, creator, arg, today):
     if not raw:
         return (
             "一次加多场，条目之间用 `;` 分隔：\n"
-            "`/批量 10.14 10:00 面试 张三; 10.14 15:00 笔试 李四`\n"
+            "`/批量 12.31 10:00 A公司 小张; 12.31 15:00 B公司 小李`\n"
             "换行分隔也行。"
         )
 
@@ -384,10 +380,10 @@ def do_batch_add(group_id, creator, arg, today):
 
 
 def do_remove(group_id, arg):
-    """支持 /删 10.14 15:20（推荐），也兼容 /删 <编号>。"""
+    """支持 /删 12.31 23:59（推荐），也兼容 /删 <编号>。"""
     arg = (arg or "").strip()
     if not arg:
-        return "用法：`/删 10.14 15:20`（日期 + 时间）"
+        return "用法：`/删 12.31 23:59`（日期 + 时间）"
 
     tokens = arg.split()
 
@@ -396,7 +392,7 @@ def do_remove(group_id, arg):
         d = parse_date(tokens[0], datetime.now())
         m = TIME_RE.match(tokens[1])
         if d is None or not m:
-            return "没看懂～ 用 `/删 10.14 15:20` 这种写法。"
+            return "没看懂～ 用 `/删 12.31 23:59` 这种写法。"
         hh, mm = int(m.group(1)), int(m.group(2))
         target = f"{d.isoformat()} {hh:02d}:{mm:02d}"
         conn = db()
@@ -430,7 +426,7 @@ def do_remove(group_id, arg):
         conn.close()
         return f"🗑 已删除（编号 `{eid}`）：{row[0]}"
 
-    return "用法：`/删 10.14 15:20`（日期 + 时间）"
+    return "用法：`/删 12.31 23:59`（日期 + 时间）"
 
 
 # ─────────────── 意图分发 ───────────────
@@ -511,7 +507,7 @@ def is_image_query(raw):
     """判断这条指令要不要出图。
 
     不带参数的 `/日历` 出图；`/日历 图片` 是同义写法（早期按钮里带的就是它）。
-    带范围参数的 /日历（本周/全部/7/10.14）走表格 —— 筛选场景表格更合适。
+    带范围参数的 /日历（本周/全部/7/12.31）走表格 —— 筛选场景表格更合适。
     """
     if not raw.startswith("/"):
         return False
@@ -637,7 +633,7 @@ class CalendarBot(botpy.Client):
             return False
         if len(have) > sent:
             await self.reply_text(
-                message, f"还有 {len(have) - sent} 个月没画，用 `/日历 10.14` 看具体月份。", seq=seq)
+                message, f"还有 {len(have) - sent} 个月没画，用 `/日历 12.31` 看具体月份。", seq=seq)
         return True
 
     async def send_one_image(self, message, events, year, month, today, seq):
