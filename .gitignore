@@ -1,8 +1,7 @@
 # 凭证：不要提交（clone 后 cp .env.example .env 再填）
 .env
 
-# 运行时数据
-schedule.db
+# 运行时产物
 out/
 *.log
 
@@ -10,3 +9,7 @@ out/
 __pycache__/
 *.pyc
 .venv/
+
+# SQLite 的临时文件（schedule.db 本身是要提交的，日程数据跟着仓库走）
+*.db-wal
+*.db-shm
