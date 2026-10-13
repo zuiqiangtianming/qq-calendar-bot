@@ -4,6 +4,19 @@
 
 **当前状态**：机器人「1023 群管家」已接通（AppID `1905782963`），WebSocket 长连接与心跳已验证正常。
 
+## Windows 上本地跑
+
+双击 `start.bat` 就行 —— 它会自己 `cd` 到脚本所在目录，优先用 `.venv\Scripts\python.exe`，没有才退回 `python`。用 cmd 起等价于：
+
+```bat
+cd /d C:\path\to\qq-calendar-bot
+start.bat
+```
+
+窗口里会实时打印 `[ready] ...已上线` / `[in] ...` / `[out] ...`，`Ctrl+C` 或关窗口即停。
+
+**`start.bat` 必须是 CRLF 换行 + GBK 编码**，这不是洁癖：cmd 读 LF 换行的批处理会从错误位置切行，把命令碎片当命令执行，症状是**双击后窗口一闪就退**（其实每行都在报错，只是没来得及看）。用编辑器改它时别存成 LF 或 UTF-8。仓库已用 `.gitattributes` 的 `*.bat text eol=crlf` 兜底，`git clone` 出来的就是 CRLF。
+
 ## 部署到 Linux 服务器
 
 ```bash

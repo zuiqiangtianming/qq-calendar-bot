@@ -1,19 +1,22 @@
 @echo off
-chcp 65001 >nul
+setlocal
 cd /d "%~dp0"
 
 if not exist ".env" (
-    echo [!] æ²¡æ‰¾åˆ° .envï¼Œè¯·å…ˆå¤åˆ¶ .env.example ä¸º .env å¹¶å¡«å…¥ QQ_BOT_APPID / QQ_BOT_SECRET
+    echo [!] Ã»ÕÒµ½ .env£¬ÇëÏÈ°Ñ .env.example ¸´ÖÆ³É .env£¬²¢ÌîÈë QQ_BOT_APPID / QQ_BOT_SECRET
+    echo.
     pause
     exit /b 1
 )
 
-set PY=python
-if exist ".venv\Scripts\python.exe" set PY=.venv\Scripts\python.exe
+set "PY=python"
+if exist ".venv\Scripts\python.exe" set "PY=.venv\Scripts\python.exe"
 
-echo æ­£åœ¨å¯åŠ¨ QQ æ—¥ç¨‹ç®¡å®¶ï¼ˆCtrl+C åœæ­¢ï¼‰...
+echo ÕıÔÚÆô¶¯ QQ ÈÕ³Ì¹Ü¼Ò£¨°´ Ctrl+C Í£Ö¹£¬¹Øµô±¾´°¿Ú¼´ÍË³ö£©...
+echo.
+
 "%PY%" bot.py
 
 echo.
-echo æœºå™¨äººå·²é€€å‡ºã€‚
+echo »úÆ÷ÈËÒÑÍË³ö¡£
 pause
