@@ -4,6 +4,10 @@ Option Explicit
 ' 用 pythonw.exe（无控制台）拉起 bot.py，不弹黑窗口；输出写进 logs\bot.log。
 ' 不要直接双击它做日常启动（那样没窗口、看不到日志），日常请用 start.bat。
 
+' 开关（控制开机要不要自动起来）：任务管理器 -> 启动 页，找到
+'   QQ Calendar Bot autostart，右键 启用 / 禁用。禁用不删文件，随时可恢复。
+' 只想现在停掉这个进程：taskkill /F /IM pythonw.exe
+
 Const DEFAULT_ROOT = "C:\Users\jzd\Documents\qq-calendar-bot"
 
 Dim fso, sh, root, pyw, script

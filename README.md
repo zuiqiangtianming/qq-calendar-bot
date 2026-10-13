@@ -21,13 +21,27 @@ start.bat
 
 `autostart.vbs` 是给自启用的**静默启动器**：用 `pythonw.exe`（无控制台）拉起 `bot.py`，不弹黑窗口，输出写进 `logs\bot.log`（没有窗口就只能靠这个文件排查）。
 
-安装方式：把 `autostart.vbs` 复制进「启动」文件夹即可 —— `Win+R` 输入 `shell:startup` 回车，就能打开那个文件夹。项目里附了 `enable-autostart.vbs` 帮你做这件事：**双击它就是安装**，卸载则在 cmd 里跑 `wscript enable-autostart.vbs remove`，或者直接把启动文件夹里那个 vbs 删掉。
+**安装**：把 `autostart.vbs` 复制进「启动」文件夹即可 —— `Win+R` 输入 `shell:startup` 回车，就能打开那个文件夹。项目里附了 `enable-autostart.vbs` 帮你做这件事：**双击它就是安装**。
 
-- **临时停掉**：cmd 里 `taskkill /F /IM pythonw.exe`
-- **自启之后别再双击 `start.bat`**，否则会同时跑两个实例，症状是回复时有时无。判断当前有没有在跑，看任务管理器里的 `pythonw.exe`
+**日常开关：用任务管理器的「启动」页**
+
+`Ctrl+Shift+Esc` 打开任务管理器 → **「启动」页** → 找到 `QQ Calendar Bot autostart`（发布者一栏可能显示"未知"，属正常）→ 右键**禁用** / **启用**。
+
+这个开关**不动任何文件**：禁用只是往 `HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder` 写一个标记，随时一键恢复。所以开关就用这一处，不必去删文件。
+
+备选方式（不想开任务管理器时）：
+
+- **停**：`Win+R` → `shell:startup`，把 `QQ Calendar Bot autostart.vbs` **移出**该文件夹（移到项目目录里留着，别删）
+- **恢复**：把它移回启动文件夹
+- **彻底卸载**：cmd 里跑 `wscript enable-autostart.vbs remove`，或直接删掉启动文件夹里那个 vbs
+
+> **自启入口只能有一个。** 不要再往 `HKCU\...\Run` 注册表或任务计划程序里重复登记同一个机器人 —— 两个入口会在开机时各起一个实例抢消息。本项目目前只有「启动」文件夹这一个入口。
+
+- **临时停掉进程（只停这一次，不影响自启）**：cmd 里 `taskkill /F /IM pythonw.exe`。注意「任务管理器里结束任务」同理，只是停进程，开机照旧会起来
+- **自启之后别再双击 `start.bat`**，否则会同时跑两个实例，症状是回复时有时无。判断当前有没有在跑，看任务管理器里有没有 `pythonw.exe`（**一个实例 = 两个 `pythonw.exe`**，原因见下文「上线前必须知道的限制」）
 - 静默启动失败不会弹窗，去 `logs\bot.log` 看。文件是追加写的，超过 2 MB 会自动轮转成 `bot.log.1`，不会无限长大
 - 这个日志里既有本项目打的 `[ready]` / `[in]` / `[cmd]` / `[out]`，也有 SDK 打的 `[botpy]` 行（登录、会话、鉴权、心跳），排查时两头都能看
-- 如果开机时网络还没就绪导致启动失败，改用「任务计划程序」：触发器选「登录时」并加 1 分钟延迟，操作填 `wscript.exe`，参数填 `"...\autostart.vbs"` 的完整路径
+- 如果开机时网络还没就绪导致启动失败，改用「任务计划程序」：触发器选「登录时」并加 1 分钟延迟，操作填 `wscript.exe`，参数填 `"...\autostart.vbs"` 的完整路径。**改用任务计划程序后要把「启动」文件夹里那个 vbs 移走**，否则就是两个入口
 
 ## 部署到 Linux 服务器
 
@@ -264,7 +278,7 @@ SDK 的 `post_group_file()` 只接受 `url` 参数，传不了本地文件。所
 - 消息里如果带 URL，域名必须先在后台「消息 URL 白名单」里报备，否则整条消息发送失败。
 - 后台「指令配置」最多 24 个指令，名称不超过 8 个中文字符。
 - SDK `qq-botpy` 已停更约两年，仓库是 <https://github.com/tencent-connect/botpy>。
-- **Windows 任务管理器里看到两个 `python.exe` 是正常的**：`.venv\Scripts\python.exe` 只是个启动器（venvlauncher），它会再拉起一个真正的 python 子进程，所以「一个实例 = 两个进程」。要确认有没有重复启动，别看进程数，**数 cmd 窗口**——或者查进程的 `ParentProcessId`：父进程是另一个 python 的那两个属于同一个实例。
+- **Windows 任务管理器里看到两个 Python 进程是正常的**：`.venv\Scripts\` 下的 `python.exe` / `pythonw.exe` 都只是 **venv 重定向器**（分别对应 base 目录 `Lib/venv/scripts/nt/` 里的 `venvlauncher.exe` / `venvwlauncher.exe`），它们的职责是定位 base 解释器再拉起真正的子进程。所以**一个实例 = 两个进程**：前台跑看到两个 `python.exe`，静默自启看到两个 `pythonw.exe`。要确认有没有重复启动，别看进程数——**数 cmd 窗口**，或者查 `ParentProcessId`：父进程是另一个 Python 的那两个属于同一个实例。顺带一提，结束进程时只结束重定向器的话子进程会继续活着，`taskkill /F /IM pythonw.exe` 会一次清掉全部。
 - **`pythonw` 下 botpy 的日志会全丢，还会刷一屏异常**：`botpy/logging.py` 在 import 时就调了 `logging.basicConfig()`，而 `StreamHandler()` 是在**构造那一刻**把 `sys.stderr` 存进自己的 `.stream` 的——`pythonw` 下那一刻 `sys.stderr` 还是 `None`，handler 从此攥着一个空流。症状是 `logs\bot.log` 里没有一行 `[botpy]`，却塞满 `Logging error ... 'NoneType' object has no attribute 'write'` 的堆栈。浏览器窗口能正常跑是因为那时 `sys.stderr` 是有效的，所以这个坑只在静默自启时才现形。修法见 `bot.py` 的 `_adopt_logging_stream()`：换掉 `sys.stdout` / `sys.stderr` 之后，顺手把 logging 树里所有 `stream is None` 的 handler 接到日志文件上。
 
 ## 想要「点击按钮直接出结果」？

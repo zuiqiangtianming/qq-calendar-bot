@@ -5,6 +5,9 @@ Option Explicit
 '   wscript 本文件 remove   -> 卸载
 ' 说明：复制而不是建快捷方式，免去 COM 依赖，也更不容易被杀软拦。
 
+' 日常开关用「任务管理器 -> 启动」页，右键那一项 启用 / 禁用 即可，
+' 不需要反复跑本文件；本文件只负责「安装」和「彻底卸载」。
+
 Const DEFAULT_ROOT = "C:\Users\jzd\Documents\qq-calendar-bot"
 Const TARGET_NAME  = "QQ Calendar Bot autostart.vbs"
 
@@ -24,7 +27,7 @@ target  = startup & "\" & TARGET_NAME
 If mode = "remove" Then
     If fso.FileExists(target) Then
         fso.DeleteFile target, True
-        MsgBox "已取消开机自启。", 64, "QQ 日程管家"
+        MsgBox "已取消开机自启（已删除启动文件夹里的启动器）。", 64, "QQ 日程管家"
     Else
         MsgBox "本来就没有设置开机自启。", 64, "QQ 日程管家"
     End If
@@ -39,4 +42,6 @@ End If
 fso.CopyFile root & "\autostart.vbs", target, True
 MsgBox "已设置开机自启。" & vbCrLf & vbCrLf & _
        "文件：" & target & vbCrLf & vbCrLf & _
-       "取消：再次运行本文件并加 remove 参数，或直接删掉该文件。", 64, "QQ 日程管家"
+       "日常开关：任务管理器 -> 启动 页，找到 QQ Calendar Bot autostart，右键 启用 / 禁用；" & _
+       "禁用不会删掉文件，随时可恢复。" & vbCrLf & vbCrLf & _
+       "彻底卸载：再次运行本文件并加 remove 参数。", 64, "QQ 日程管家"
